@@ -1,0 +1,66 @@
+# GAIA Benchmark Configuration
+
+# Model settings
+model:
+  name: claude-sonnet-4-5-20250929
+  temperature: 0.2
+  max_tokens: 4096
+  timeout: 120
+
+# Model configurations for different purposes
+models:
+  claude-sonnet-4-5-20250929:
+    model_id: claude-sonnet-4-5-20250929
+    temperature: 0.2
+    max_tokens: 4096
+
+# Agent configuration
+agent:
+  type: planning_agent  # Options: general_agent, planning_agent, deep_researcher_agent, deep_analyzer_agent, browser_use_agent
+  use_hierarchical: true
+  max_steps: 50
+  planning_interval: 10
+  name: planning_agent
+  model_id: claude-sonnet-4-5-20250929
+
+# Sub-agents for hierarchical mode
+sub_agents:
+  - type: deep_researcher_agent
+    name: deep_researcher_agent
+    max_steps: 10
+  - type: deep_analyzer_agent
+    name: deep_analyzer_agent
+    max_steps: 10
+  - type: browser_use_agent
+    name: browser_use_agent
+    max_steps: 10
+
+# Dataset configuration
+dataset:
+  path: data/GAIA
+  split: validation  # Options: validation, test
+  max_tasks: 10  # null = all tasks
+  with_ground_truth: true
+
+# Execution settings
+execution:
+  concurrency: 10
+  filter_completed: false
+  timeout: 600
+  use_local_proxy: false
+
+# Response preparation
+response_preparation:
+  use_reformulation: false
+  reformulation_model: gemini-2.5-flash
+
+# Output settings
+output:
+  results_path: outputs/results.jsonl
+  save_summary: true
+  save_path: outputs/gaia_results.jsonl
+  log_path: outputs/gaia_run.log
+
+# Evaluation
+evaluation:
+  compute_metrics: true

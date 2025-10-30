@@ -214,6 +214,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-data/
-test/
-outputs/
+data
+test
+outputs

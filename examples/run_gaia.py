@@ -2,38 +2,34 @@
 """GAIA Benchmark Evaluation - Simplified Entry Point"""
 
 import asyncio
-import argparse
-import json
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
-# Import new simplified modules
-from src.config.loader import load_config
+import hydra
+from hydra.utils import to_absolute_path
+from omegaconf import DictConfig, OmegaConf
+
+# Ensure src package is importable when running as a script
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.core.logger import ResearchLogger
 from src.core.models import MODEL, ModelConfig
 from src.gaia.dataset import GAIADataset, GAIAScorer
 from src.gaia.evaluator import get_tasks_to_run, run_batch, append_result
 from src.agents.agent import create_agent, prepare_response
 from src.tools.default_tools import default_tools
+from src.utils.config_loader import Config
 
 
-async def main():
-    """Main GAIA benchmark evaluation entry point."""
-    # Parse arguments
-    parser = argparse.ArgumentParser(description='GAIA Benchmark Evaluation')
-    parser.add_argument('--config', default='./configs/config.yaml', help='Configuration file')
-    parser.add_argument('--max-tasks', type=int, help='Maximum tasks to run')
-    parser.add_argument('--batch-size', type=int, help='Batch size for concurrent execution')
-    parser.add_argument('--split', choices=['validation', 'test'], help='Dataset split')
-    parser.add_argument('--output', help='Output results file path')
-    args = parser.parse_args()
-
-    # Load configuration
+async def run(cfg: DictConfig, config: Config) -> None:
+    """Run GAIA benchmark evaluation."""
     logger = ResearchLogger()
     logger.section("GAIA Benchmark Evaluation")
-    
-    config = load_config(args.config, args)
-    logger.info(f"Configuration loaded from: {args.config}")
+    logger.info("Configuration resolved via Hydra")
+    logger.print_raw(OmegaConf.to_yaml(cfg))
 
     # Build model from config
     logger.phase_start("Initializing Model")
@@ -93,7 +89,7 @@ async def main():
 
         # Save summary
         if config.get('output', {}).get('save_summary', True):
-            summary_path = Path(config.save_path).with_suffix('.summary.md')
+            summary_path = config.save_path.with_suffix('.summary.md')
             summary = f"""# GAIA Evaluation Summary
 
 ## Configuration
@@ -113,7 +109,26 @@ async def main():
     logger.success(f"Results saved to: {config.save_path}")
 
 
+@hydra.main(version_base=None, config_path="../src/configs", config_name="config_gaia")
+def main(cfg: DictConfig) -> None:
+    """Hydra entry point for GAIA evaluation."""
+    config_dict = OmegaConf.to_container(cfg, resolve=True)
+
+    dataset_cfg = config_dict.get('dataset', {})
+    if 'path' in dataset_cfg:
+        dataset_cfg['path'] = to_absolute_path(dataset_cfg['path'])
+
+    output_cfg = config_dict.get('output', {})
+    for key in ('save_path', 'results_path', 'log_path'):
+        if key in output_cfg:
+            output_cfg[key] = to_absolute_path(output_cfg[key])
+
+    config = Config(config_dict)
+
+    asyncio.run(run(cfg, config))
+
+
 if __name__ == '__main__':
     # Register agents
     import src.agents
-    asyncio.run(main())
+    main()
